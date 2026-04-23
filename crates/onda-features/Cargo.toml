@@ -1,0 +1,14 @@
+[package]
+name = "onda-features"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+onda-core = { path = "../onda-core" }
+onda-dsp = { path = "../onda-dsp" }
+rustfft.workspace = true
+realfft.workspace = true
+ndarray.workspace = true
+thiserror.workspace = true
+tracing.workspace = true

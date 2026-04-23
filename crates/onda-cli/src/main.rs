@@ -43,6 +43,12 @@ enum Cmd {
         input: PathBuf,
     },
 
+    /// Analyze an audio file: estimate tempo, count beats, print summary.
+    Analyze {
+        #[arg(long)]
+        input: PathBuf,
+    },
+
     /// Generate synthetic test audio: sine + kick-sim for pipeline smoke tests.
     Synth {
         #[arg(long)]
@@ -77,6 +83,7 @@ fn main() -> Result<()> {
             curve,
         } => run_crossfade(in_a, in_b, out, fade_secs, &curve),
         Cmd::Info { input } => run_info(input),
+        Cmd::Analyze { input } => run_analyze(input),
         Cmd::Synth {
             out,
             secs,
@@ -84,6 +91,42 @@ fn main() -> Result<()> {
             bpm,
         } => run_synth(out, secs, freq, bpm),
     }
+}
+
+fn run_analyze(input: PathBuf) -> Result<()> {
+    use onda_features::{
+        beats::beat_grid_from_tempo,
+        onsets::{onset_envelope, OnsetParams},
+        spectrum::{stft_mono, StftParams},
+        tempo::estimate_tempo,
+    };
+
+    info!(path=?input, "decoding for analysis");
+    let buf = decode_file(&input).with_context(|| format!("decoding {}", input.display()))?;
+    let spec = stft_mono(&buf, StftParams::MIR_STANDARD)
+        .map_err(|e| anyhow::anyhow!("stft: {e}"))?;
+    let env = onset_envelope(&spec, OnsetParams::default());
+    let t = estimate_tempo(&spec);
+    let grid = beat_grid_from_tempo(&env, spec.frame_duration(), t.bpm);
+
+    println!("=== ONDA analysis: {} ===", input.display());
+    println!("  duration:       {:.3}s @ {}Hz stereo", buf.duration_secs(), buf.sample_rate);
+    println!("  stft frames:    {} (hop {}ms, win {}ms)",
+        spec.n_frames(),
+        (spec.frame_duration() * 1000.0).round(),
+        (StftParams::MIR_STANDARD.win_size as f32 / buf.sample_rate as f32 * 1000.0).round(),
+    );
+    println!("  tempo:          {:.2} BPM (confidence {:.3})", t.bpm, t.confidence);
+    println!("  beat period:    {:.3}s", grid.period_sec);
+    println!("  beats detected: {} (alignment quality {:.2})", grid.beats.len(), grid.quality);
+    if grid.beats.len() >= 4 {
+        print!("  first 4 beats:  ");
+        for b in &grid.beats[..4] {
+            print!("{:.3}s  ", b);
+        }
+        println!();
+    }
+    Ok(())
 }
 
 fn run_synth(out: PathBuf, secs: f32, freq: f32, bpm: f32) -> Result<()> {

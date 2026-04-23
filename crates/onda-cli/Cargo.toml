@@ -12,6 +12,7 @@ path = "src/main.rs"
 onda-core = { path = "../onda-core" }
 onda-audio = { path = "../onda-audio" }
 onda-dsp = { path = "../onda-dsp" }
+onda-features = { path = "../onda-features" }
 clap.workspace = true
 anyhow.workspace = true
 tracing.workspace = true

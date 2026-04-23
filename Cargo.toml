@@ -4,6 +4,7 @@ members = [
     "crates/onda-core",
     "crates/onda-audio",
     "crates/onda-dsp",
+    "crates/onda-features",
     "crates/onda-cli",
 ]
 
