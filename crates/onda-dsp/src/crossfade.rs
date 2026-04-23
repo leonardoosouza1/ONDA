@@ -116,6 +116,83 @@ pub fn crossfade_equal_power(a: &[f32], b: &[f32]) -> Result<Vec<f32>> {
     crossfade(a, b, CrossfadeCurve::EqualPower)
 }
 
+/// Beat-aligned crossfade: the overlap length is an integer number of bars
+/// of track A (4 beats per bar assumed — 4/4 time), and the fade begins at
+/// the latest beat of A that leaves room for `bars` complete bars.
+///
+/// Track B is aligned so that its first beat of the overlap lands on the
+/// downbeat of A's fade-in bar. No tempo matching yet (that requires a
+/// phase vocoder) — for two tracks with similar tempos (±3 BPM), this is
+/// already audibly coherent; beyond that, a tempo mismatch is audible as
+/// phasing. Returns the combined mix.
+pub fn beat_aligned_crossfade(
+    a: &AudioBuffer,
+    b: &AudioBuffer,
+    bars: u32,
+    a_bpm: f32,
+    b_first_beat_sec: f32,
+    curve: CrossfadeCurve,
+) -> Result<AudioBuffer> {
+    if a.sample_rate != SAMPLE_RATE || b.sample_rate != SAMPLE_RATE {
+        return Err(OndaError::Dsp(format!(
+            "expected {}Hz",
+            SAMPLE_RATE
+        )));
+    }
+    if a.channels != 2 || b.channels != 2 {
+        return Err(OndaError::Dsp("expected stereo input".into()));
+    }
+    if bars == 0 || a_bpm <= 0.0 {
+        return Err(OndaError::InvalidArg(format!(
+            "bars={bars} a_bpm={a_bpm} must be positive"
+        )));
+    }
+
+    let beats_per_bar = 4u32;
+    let total_beats = bars * beats_per_bar;
+    let fade_secs = total_beats as f32 * 60.0 / a_bpm;
+    let fade_frames = (fade_secs * SAMPLE_RATE as f32).round() as usize;
+    let fade_samples = fade_frames * 2;
+
+    if fade_samples > a.samples.len() {
+        return Err(OndaError::InvalidArg(format!(
+            "need {:.2}s fade but A is only {:.2}s",
+            fade_secs,
+            a.duration_secs()
+        )));
+    }
+
+    // Trim track B so its first detected beat is the start of the overlap,
+    // dropping anything before it (cut the intro silence / off-beat head).
+    let b_skip_samples = ((b_first_beat_sec.max(0.0) * SAMPLE_RATE as f32) as usize) * 2;
+    let b_skip_samples = b_skip_samples.min(b.samples.len());
+    let b_trimmed = &b.samples[b_skip_samples..];
+    if fade_samples > b_trimmed.len() {
+        return Err(OndaError::InvalidArg(format!(
+            "B too short after trimming head: need {}s",
+            fade_secs
+        )));
+    }
+
+    let a_head_end = a.samples.len() - fade_samples;
+    let a_tail = &a.samples[a_head_end..];
+    let b_head = &b_trimmed[..fade_samples];
+    let b_rest = &b_trimmed[fade_samples..];
+
+    let crossfaded = crossfade(a_tail, b_head, curve)?;
+
+    let mut out = Vec::with_capacity(a_head_end + crossfaded.len() + b_rest.len());
+    out.extend_from_slice(&a.samples[..a_head_end]);
+    out.extend_from_slice(&crossfaded);
+    out.extend_from_slice(b_rest);
+
+    Ok(AudioBuffer {
+        samples: out,
+        sample_rate: SAMPLE_RATE,
+        channels: 2,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -35,6 +35,10 @@ enum Cmd {
         /// "linear" or "equal-power" (default).
         #[arg(long, default_value = "equal-power")]
         curve: String,
+        /// If set, ignore --fade-secs and run a beat-aligned crossfade of N bars
+        /// (assumes 4/4). Uses detected tempo of track A.
+        #[arg(long)]
+        bars: Option<u32>,
     },
 
     /// Print info about an audio file (duration, rate, channels).
@@ -81,7 +85,8 @@ fn main() -> Result<()> {
             out,
             fade_secs,
             curve,
-        } => run_crossfade(in_a, in_b, out, fade_secs, &curve),
+            bars,
+        } => run_crossfade(in_a, in_b, out, fade_secs, &curve, bars),
         Cmd::Info { input } => run_info(input),
         Cmd::Analyze { input } => run_analyze(input),
         Cmd::Synth {
@@ -172,7 +177,16 @@ fn run_crossfade(
     out: PathBuf,
     fade_secs: f32,
     curve: &str,
+    bars: Option<u32>,
 ) -> Result<()> {
+    use onda_dsp::crossfade::beat_aligned_crossfade;
+    use onda_features::{
+        beats::beat_grid_from_tempo,
+        onsets::{onset_envelope, OnsetParams},
+        spectrum::{stft_mono, StftParams},
+        tempo::estimate_tempo,
+    };
+
     let curve = match curve {
         "linear" => CrossfadeCurve::Linear,
         "equal-power" | "eq" | "eqp" => CrossfadeCurve::EqualPower,
@@ -184,14 +198,40 @@ fn run_crossfade(
     info!(path=?in_b, "decoding B");
     let b = decode_file(&in_b).with_context(|| format!("decoding {}", in_b.display()))?;
 
-    info!(
-        a_secs = a.duration_secs(),
-        b_secs = b.duration_secs(),
-        fade_secs,
-        "building crossfade mix"
-    );
-    let mix = build_crossfade_mix(&a, &b, fade_secs, curve)
-        .context("building crossfade mix")?;
+    let mix = if let Some(bars) = bars {
+        // Beat-aligned path: analyze both tracks.
+        let spec_a = stft_mono(&a, StftParams::MIR_STANDARD)
+            .map_err(|e| anyhow::anyhow!("stft A: {e}"))?;
+        let spec_b = stft_mono(&b, StftParams::MIR_STANDARD)
+            .map_err(|e| anyhow::anyhow!("stft B: {e}"))?;
+
+        let tempo_a = estimate_tempo(&spec_a);
+        let tempo_b = estimate_tempo(&spec_b);
+
+        let env_b = onset_envelope(&spec_b, OnsetParams::default());
+        let grid_b = beat_grid_from_tempo(&env_b, spec_b.frame_duration(), tempo_b.bpm);
+        let b_first_beat = grid_b.beats.first().copied().unwrap_or(0.0);
+
+        info!(
+            tempo_a = tempo_a.bpm,
+            tempo_b = tempo_b.bpm,
+            bars,
+            b_first_beat,
+            "beat-aligned crossfade"
+        );
+        let overlap_secs = (bars * 4) as f32 * 60.0 / tempo_a.bpm;
+        info!(overlap_secs, "computed overlap");
+        beat_aligned_crossfade(&a, &b, bars, tempo_a.bpm, b_first_beat, curve)
+            .context("beat-aligned crossfade")?
+    } else {
+        info!(
+            a_secs = a.duration_secs(),
+            b_secs = b.duration_secs(),
+            fade_secs,
+            "time-based crossfade"
+        );
+        build_crossfade_mix(&a, &b, fade_secs, curve).context("building crossfade mix")?
+    };
 
     info!(out=?out, mix_secs = mix.duration_secs(), "writing WAV");
     write_wav(&out, &mix).with_context(|| format!("writing {}", out.display()))?;
