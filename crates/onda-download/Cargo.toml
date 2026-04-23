@@ -1,0 +1,13 @@
+[package]
+name = "onda-download"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+onda-core = { path = "../onda-core" }
+tokio = { workspace = true, features = ["process", "io-util", "rt-multi-thread", "macros", "fs"] }
+thiserror.workspace = true
+tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true

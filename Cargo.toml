@@ -5,6 +5,7 @@ members = [
     "crates/onda-audio",
     "crates/onda-dsp",
     "crates/onda-features",
+    "crates/onda-download",
     "crates/onda-cli",
 ]
 
@@ -43,6 +44,11 @@ rayon = "1"
 
 # Numeric
 ndarray = "0.16"
+
+# HTTP
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+futures-util = "0.3"
+indicatif = "0.18"
 
 [profile.release]
 lto = "thin"

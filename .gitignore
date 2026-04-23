@@ -1,13 +1,86 @@
+# ── Rust ─────────────────────────────────────────────────────────────────
 /target
+**/target/
 Cargo.lock
+**/*.rs.bk
+
+# ── Áudio (pesado, gerado; fixtures pequenos liberados abaixo) ───────────
 *.wav
 *.mp3
 *.flac
 *.ogg
 *.opus
-*.png
+*.m4a
+*.aac
+*.webm
+*.mp4
+*.wma
+*.aiff
+*.aif
+
+# Fixtures de teste commitáveis (pequenos, determinísticos)
 !tests/fixtures/*.wav
 !tests/fixtures/*.mp3
+!crates/**/tests/fixtures/*.wav
+!crates/**/tests/fixtures/*.mp3
+
+# ── Dev artifacts / scratch ──────────────────────────────────────────────
+# tests_out contém faixas baixadas + mixes renderizados — grande e não-reproduzível
+# pelo repo (vem de yt-dlp/archive.org). README é documentação e vai pro git.
+tests_out/**
+!tests_out/
+!tests_out/README.md
+
 .cache/
 /tmp/
+/tmp-*/
+*.log
+*.tmp
+*.part
+
+# Imagens geradas (plots, debug)
+*.png
+*.jpg
+*.jpeg
+*.gif
+!docs/**/*.png
+!docs/**/*.jpg
+
+# ── Python (tools/ usa uv run --script PEP 723) ──────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+uv.lock
+
+# ── Secrets / ambiente ───────────────────────────────────────────────────
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+credentials.json
+
+# ── Editores / IDE ───────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.*.sw[a-p]
+
+# ── OS ───────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Ferramentas AI locais ────────────────────────────────────────────────
+.claude/
+.aider*
+.cursor/
