@@ -1,0 +1,18 @@
+[package]
+name = "onda-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "onda"
+path = "src/main.rs"
+
+[dependencies]
+onda-core = { path = "../onda-core" }
+onda-audio = { path = "../onda-audio" }
+onda-dsp = { path = "../onda-dsp" }
+clap.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

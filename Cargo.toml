@@ -1,0 +1,52 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/onda-core",
+    "crates/onda-audio",
+    "crates/onda-dsp",
+    "crates/onda-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+authors = ["Leonardo <leonardo.souzadev@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/leonardo/onda"
+
+[workspace.dependencies]
+# Core
+thiserror = "2"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Audio I/O
+symphonia = { version = "0.5", features = ["all-codecs", "all-formats"] }
+hound = "3"
+rubato = "0.16"
+
+# DSP
+rustfft = "6"
+realfft = "3"
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Concurrency
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "process", "sync"] }
+rayon = "1"
+
+# Numeric
+ndarray = "0.16"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+opt-level = 3
+
+[profile.dev]
+opt-level = 1  # audio decode is dog-slow at opt-level 0

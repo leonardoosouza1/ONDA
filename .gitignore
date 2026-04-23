@@ -1,0 +1,13 @@
+/target
+Cargo.lock
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.opus
+*.png
+!tests/fixtures/*.wav
+!tests/fixtures/*.mp3
+.cache/
+/tmp/
+.env

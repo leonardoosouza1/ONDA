@@ -1,0 +1,11 @@
+[package]
+name = "onda-dsp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+onda-core = { path = "../onda-core" }
+rustfft.workspace = true
+realfft.workspace = true
+thiserror.workspace = true
